@@ -54,6 +54,17 @@ func LoginSign(params string) string {
 	return fmt.Sprintf("%x", hash)
 }
 
+// NativeAuthSign 生成原生认证接口的auth字段
+// 格式: md5("source=mini_micro&target=<target>&time=<ts>" + NativeServerSalt)
+// 逆向自 MicroMiniNew.exe 0x0045E750 签名构造代码
+// 注意: JSON字段名为 "auth"，不是 "sign"（已通过服务器验证确认）
+func NativeAuthSign(target, timestamp string) string {
+	raw := "source=mini_micro&target=" + target + "&time=" + timestamp +
+		"2ddb7619717147439c83ab022e9d4d38"
+	hash := md5.Sum([]byte(raw))
+	return fmt.Sprintf("%x", hash)
+}
+
 // MD5Str 通用MD5字符串哈希
 func MD5Str(s string) string {
 	hash := md5.Sum([]byte(s))

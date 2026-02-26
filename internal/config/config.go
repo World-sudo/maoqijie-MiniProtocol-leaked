@@ -3,8 +3,8 @@ package config
 const (
 	// 客户端标识
 	UserAgent  = "Rainbow/1.0 (Windows_RT; U; Linux 6.2; zh)"
-	AppVersion = "1.53.1"
-	CltVersion = 79105
+	AppVersion = "1.53.2"
+	CltVersion = 79106
 	APIID      = 110
 
 	// 游戏逻辑服务器
@@ -131,8 +131,13 @@ const (
 	GeeTestSecretAndroid = "7fd790bf9e3f8b31b9c477af7f569b74"
 	GeeTestSecretApple   = "8faa3850bb007ddcefc08bcb0fcf34f2"
 
-	// MicroMiniNew 签名salt (逆向自二进制)
+	// MicroMiniNew 签名salt (逆向自二进制 0x0065EEF8, 服务器不接受)
 	NativeSignSalt = "c8c93222583741bd828579b3d3efd43b"
+
+	// 原生认证服务器实际使用的签名salt (逆向自运行时 .data 段 0x006EBA14)
+	// 签名格式: md5("source=mini_micro&target=<target>&time=<ts>" + salt)
+	// JSON字段名为 "auth" (不是 "sign")
+	NativeServerSalt = "2ddb7619717147439c83ab022e9d4d38"
 
 	// 登录方式 (逆向自 MicroMiniNew.exe)
 	LoginTypeTextPwd    = "TextPasswordLogin"

@@ -18,6 +18,7 @@ import (
 func main() {
 	uin := flag.Int64("uin", 0, "用户uin")
 	password := flag.String("pwd", "", "登录密码 (触发SSO登录)")
+	nativeLogin := flag.Bool("native", false, "使用原生登录 (wskacchm) 代替SSO")
 	deviceID := flag.String("device", "", "设备指纹 (WINxxxx)")
 	jwt := flag.String("jwt", "", "登录JWT令牌")
 	skipTelemetry := flag.Bool("skip-telemetry", false, "跳过遥测上报")
@@ -44,14 +45,25 @@ func main() {
 
 	client := httpc.New()
 
-	// SSO登录模式
+	// 登录模式
 	if *password != "" {
-		token, err := runSSOLogin(client, *uin, *password)
-		if err != nil {
-			log.Fatalf("[login] 失败: %v", err)
+		if *nativeLogin {
+			// 原生登录 (MicroMiniNew.exe 协议)
+			token, err := runNativeLogin(client, *uin, *password, *deviceID)
+			if err != nil {
+				log.Fatalf("[login] 原生登录失败: %v", err)
+			}
+			log.Printf("[login] 原生登录成功! token: %s", token)
+			*jwt = token
+		} else {
+			// SSO登录 (wapi.mini1.cn)
+			token, err := runSSOLogin(client, *uin, *password)
+			if err != nil {
+				log.Fatalf("[login] SSO登录失败: %v", err)
+			}
+			log.Printf("[login] SSO登录成功! JWT: %s", token)
+			*jwt = token
 		}
-		log.Printf("[login] 成功! JWT: %s", token)
-		*jwt = token
 		if *loginOnly {
 			return
 		}

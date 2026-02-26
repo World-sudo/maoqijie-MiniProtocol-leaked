@@ -9,6 +9,36 @@ import (
 	"miniprotocol/internal/register"
 )
 
+// runNativeLogin 原生登录流程 (MicroMiniNew.exe 协议)
+// API: POST https://wskacchm.mini1.cn:14130/login/auth_security
+func runNativeLogin(client *httpc.Client, uin int64, password, deviceID string) (string, error) {
+	native := register.NewNativeClient(client, "")
+
+	log.Printf("[login] 原生登录: uin=%d device=%s", uin, deviceID)
+
+	resp, err := native.Login(uin, password, deviceID)
+	if err != nil {
+		return "", fmt.Errorf("原生登录请求失败: %w", err)
+	}
+
+	log.Printf("[login] 响应: code=%d msg=%s", resp.Code, resp.Msg)
+
+	if resp.Code != 0 {
+		raw, _ := json.Marshal(resp)
+		return "", fmt.Errorf("原生登录失败: %s", string(raw))
+	}
+
+	// 解析登录成功数据
+	dataBytes, _ := json.Marshal(resp.Data)
+	var loginData register.LoginData
+	if err := json.Unmarshal(dataBytes, &loginData); err != nil {
+		return "", fmt.Errorf("解析登录数据失败: %w", err)
+	}
+
+	log.Printf("[login] Uin=%d token=%s", loginData.Uin, loginData.Token)
+	return loginData.Token, nil
+}
+
 // runSSOLogin 执行SSO登录流程 (带手动验证码)
 // 返回: uin, jwt token, error
 func runSSOLogin(client *httpc.Client, uin int64, password string) (string, error) {
