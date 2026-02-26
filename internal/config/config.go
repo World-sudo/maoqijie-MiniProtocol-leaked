@@ -60,4 +60,15 @@ const (
 
 	// Sentry DSN
 	SentryDSN = "https://98bca67bdc8939da32b4d77b923d40e4@miniwsentry.mini1.cn/2"
+
+	// AES-128加密 (bdinfo参数加密)
+	AESKey = "7q1WyNG3dE3CRy85"
+	AESIV  = "Utz92Hjrky1XAX1B"
+
+	// 第三方OAuth
+	WeChatAppID = "wx0344e7ba7bfcacaf"
+	QQAppID     = "101901986"
+
+	// DomainLogin常量
+	DomainLoginHash = "f5711eb1640712de051e5aedc35329c3"
 )

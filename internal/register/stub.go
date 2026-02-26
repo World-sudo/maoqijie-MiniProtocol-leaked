@@ -58,6 +58,38 @@ func (c *Client) DomainLogin(server string, uin int64, postData string) (int, st
 	return resp.StatusCode, resp.Status, nil
 }
 
+// TextPwdLogin 用户名密码登录 (POST /account/TextPwdLogin)
+// 逆向自 LJ#261: uin + pwd 字段, 密码MD5后传输
+func (c *Client) TextPwdLogin(account, password, deviceID string) (int, string, error) {
+	pwdMD5 := auth.MD5Password(password)
+
+	params := url.Values{}
+	params.Set("uin", account)
+	params.Set("pwd", pwdMD5)
+	params.Set("device_id", deviceID)
+
+	u := fmt.Sprintf("https://%s%s",
+		config.RegisterWebHost, config.TextPwdLoginPath)
+
+	req, err := http.NewRequest("POST", u,
+		strings.NewReader(params.Encode()))
+	if err != nil {
+		return 0, "", fmt.Errorf("构造登录请求失败: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	p := httpc.DefaultPayload(deviceID)
+	httpc.InjectHeaders(req, "", "", p)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return 0, "", fmt.Errorf("登录请求失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	return resp.StatusCode, resp.Status, nil
+}
+
 // TextPwdLoginURL 构造用户名密码登录URL
 func TextPwdLoginURL() string {
 	return fmt.Sprintf("https://%s%s",
