@@ -47,6 +47,11 @@ const (
 	NativeAuthIP   = "120.24.63.165"
 	NativeAuthPort = 14000
 
+	// RPC API (逆向自 LJ#7 rpc_do_http_post)
+	RPCAPIPath   = "/api/v1"
+	RPCTestHost1 = "124.71.98.30:8089"
+	RPCTestHost2 = "116.205.254.139"
+
 	// SMS/Email 验证 (逆向自 MicroMiniNew.exe)
 	SMSSendPath    = "/sms/smssend/"
 	SMSVerifyPath  = "/sms/smsverify/"
@@ -102,9 +107,29 @@ const (
 	// DomainLogin常量
 	DomainLoginHash = "f5711eb1640712de051e5aedc35329c3"
 
+	// 固定认证MD5哈希 (逆向自 LJC字节码多处出现)
+	AuthHashFixed = "763f86ba71a337e1681872f12e23b411" // &auth= 参数
+	CTHashFixed   = "3dbc5f33add11d1af78ba2af365e095"  // &cthash= 参数
+	ThirdHash     = "583006e8867d41f6b17e431d42c8b7e7" // 第三方登录
+	BaseEngHash   = "7788ff50ea1eb307153b5202bc2c1477" // libMiniBaseEngine
+	PkgHash       = "8aa7c844f44dca9a0af98edc49759b01" // game_script.pkg
+
+	// RPC代理路径 (逆向自 patch_game_script.pkg)
+	RPCProxyPath   = "/_proxy"
+	SocialProxyCmd = "/social_proxy"
+
+	// 社区/API服务
+	ShequHost   = "shequ.mini1.cn"
+	CreditAPI   = "credit-api.mini1.cn"
+	MiniPalHost = "minipal.mini1.cn"
+
 	// GeeTest V4 (逆向自 sso.mini1.cn JS)
 	GeeTestCaptchaURL = "gcaptcha4.geetest.com"
 	GeeTestCaptchaID  = "57157b87c9788ae72be45a2c79c6dd1c"
+
+	// 极验 secret_id (逆向自 LJ#146, 按平台区分)
+	GeeTestSecretAndroid = "7fd790bf9e3f8b31b9c477af7f569b74"
+	GeeTestSecretApple   = "8faa3850bb007ddcefc08bcb0fcf34f2"
 
 	// MicroMiniNew 签名salt (逆向自二进制)
 	NativeSignSalt = "c8c93222583741bd828579b3d3efd43b"

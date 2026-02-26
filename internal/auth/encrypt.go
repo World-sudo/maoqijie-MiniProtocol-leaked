@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"miniprotocol/internal/config"
+	"strings"
 )
 
 // EncryptBDInfo AES-128-CBC加密bdinfo参数
@@ -54,10 +55,48 @@ func NativeBase64Decode(s string) ([]byte, error) {
 	return enc.DecodeString(s)
 }
 
+// DecryptBDInfo AES-128-CBC解密bdinfo参数
+func DecryptBDInfo(cipherB64 string) (string, error) {
+	ct, err := base64.StdEncoding.DecodeString(cipherB64)
+	if err != nil {
+		return "", fmt.Errorf("base64 decode: %w", err)
+	}
+	block, err := aes.NewCipher([]byte(config.AESKey))
+	if err != nil {
+		return "", fmt.Errorf("aes cipher: %w", err)
+	}
+	mode := cipher.NewCBCDecrypter(block, []byte(config.AESIV))
+	mode.CryptBlocks(ct, ct)
+	return string(pkcs7Unpad(ct)), nil
+}
+
 // URLSign 生成URL签名: md5(uin+secret+ts)
 // 逆向自 LJ#96: GetReqUrl / p_getmd5
 func URLSign(uin int64, ts int64) string {
 	return Sign(uin, ts)
+}
+
+// EnctyptW EnctyptW加密 (注意: 原始代码拼写错误 Enctypt)
+// 逆向自 lj_098: privateKey + EnctyptW + md5Str + URL编码
+// 用途: 特殊参数加密, 使用 DomainLoginHash 作为 privateKey
+func EnctyptW(input, privateKey string) string {
+	raw := input + privateKey
+	hash := md5.Sum([]byte(raw))
+	return fmt.Sprintf("%x", hash)
+}
+
+// URLEncodeBytes 手动URL编码 (逆向自 lj_098: format("%%%02X", byte))
+func URLEncodeBytes(data []byte) string {
+	var b strings.Builder
+	for _, c := range data {
+		if (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+			(c >= '0' && c <= '9') || c == '.' || c == '-' || c == '_' || c == ' ' {
+			b.WriteByte(c)
+		} else {
+			fmt.Fprintf(&b, "%%%02X", c)
+		}
+	}
+	return b.String()
 }
 
 func pkcs7Pad(data []byte, blockSize int) []byte {
@@ -68,4 +107,15 @@ func pkcs7Pad(data []byte, blockSize int) []byte {
 		padded[i] = byte(padding)
 	}
 	return padded
+}
+
+func pkcs7Unpad(data []byte) []byte {
+	if len(data) == 0 {
+		return data
+	}
+	padding := int(data[len(data)-1])
+	if padding > len(data) || padding == 0 {
+		return data
+	}
+	return data[:len(data)-padding]
 }
