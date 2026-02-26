@@ -17,15 +17,19 @@ import (
 
 func main() {
 	uin := flag.Int64("uin", 0, "用户uin")
+	password := flag.String("pwd", "", "登录密码 (触发SSO登录)")
 	deviceID := flag.String("device", "", "设备指纹 (WINxxxx)")
 	jwt := flag.String("jwt", "", "登录JWT令牌")
 	skipTelemetry := flag.Bool("skip-telemetry", false, "跳过遥测上报")
 	skipChat := flag.Bool("skip-chat", false, "跳过聊天服务")
 	skipGame := flag.Bool("skip-game", false, "跳过游戏连接")
+	loginOnly := flag.Bool("login-only", false, "仅登录，不连接游戏服务")
 	flag.Parse()
 
 	if *uin == 0 {
-		fmt.Fprintln(os.Stderr, "用法: mini -uin <uin> [-device <deviceID>] [-jwt <token>]")
+		fmt.Fprintln(os.Stderr, "用法:")
+		fmt.Fprintln(os.Stderr, "  登录: mini -uin <uin> -pwd <密码>")
+		fmt.Fprintln(os.Stderr, "  连接: mini -uin <uin> -jwt <token>")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -38,14 +42,27 @@ func main() {
 		log.Fatalf("[main] 设备指纹格式错误: %s", *deviceID)
 	}
 
+	client := httpc.New()
+
+	// SSO登录模式
+	if *password != "" {
+		token, err := runSSOLogin(client, *uin, *password)
+		if err != nil {
+			log.Fatalf("[login] 失败: %v", err)
+		}
+		log.Printf("[login] 成功! JWT: %s", token)
+		*jwt = token
+		if *loginOnly {
+			return
+		}
+	}
+
 	// 凭证
 	cred := auth.NewCredential(*uin, *deviceID)
 	if *jwt != "" {
 		cred.SetLoginJWT(*jwt)
 	}
 	log.Printf("[main] 凭证: %s", cred)
-
-	client := httpc.New()
 
 	// 遥测上报
 	if !*skipTelemetry {
