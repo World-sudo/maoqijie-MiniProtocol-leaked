@@ -6,8 +6,9 @@ import (
 	"strconv"
 )
 
-// 签名密钥（从抓包推断，需实际验证）
-const signSecret = "miniworld_chat_secret"
+// 签名密钥（从 libiworld.dll 逆向提取）
+// 格式: md5("%s%d%s" % (uin, time, secret))
+const signSecret = "#_php_miniw_2016_#"
 
 // Sign 生成MD5 auth签名: md5(uin + time + secret)
 func Sign(uin int64, ts int64) string {

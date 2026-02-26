@@ -29,9 +29,17 @@ const (
 	RoomPort = 8080
 	RoomPath = "/server/room"
 
-	// 注册相关 (HTTPS，待解密)
-	RegisterWebHost = "mnweb.mini1.cn"
-	RegisterH5Host  = "h5.mini1.cn"
+	// 注册/登录 (HTTPS)
+	RegisterWebHost  = "mnweb.mini1.cn"
+	RegisterH5Host   = "h5.mini1.cn"
+	RegisterPath     = "/register/"
+	TextPwdLoginPath = "/account/TextPwdLogin"
+	DomainLoginPath  = "/miniw/ldap/auth"
+
+	// 通道管理
+	ChannelHost     = "wskacchm.mini1.cn"
+	ChannelPortPre  = 14130
+	ChannelPortPost = 14120
 
 	// 运营配置
 	OperateCDNHost = "operate2cdn.mini1.cn"
@@ -44,4 +52,12 @@ const (
 
 	// JWT签发来源
 	JWTSource = "man_machine.login_v3"
+
+	// 自定义HTTP头
+	HeaderAuth    = "MN-AUTH"
+	HeaderToken   = "MN-TOKEN"
+	HeaderPayload = "MN-PAYLOAD"
+
+	// Sentry DSN
+	SentryDSN = "https://98bca67bdc8939da32b4d77b923d40e4@miniwsentry.mini1.cn/2"
 )
