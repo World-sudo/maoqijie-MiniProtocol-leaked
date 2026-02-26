@@ -57,8 +57,9 @@ func (r *Reporter) reportTo(host string, events []Event) error {
 	return nil
 }
 
-// LoginCheckEvent 构建登录连接检查事件
-func (r *Reporter) LoginCheckEvent() Event {
+// LoginCheckConnectEvent 构建 login_check_connect 事件
+// 逆向自 pcapng: 首次登录连接检查 (apiid=999)
+func (r *Reporter) LoginCheckConnectEvent() Event {
 	return Event{
 		Age:             0,
 		APIID:           999,
@@ -79,5 +80,23 @@ func (r *Reporter) LoginCheckEvent() Event {
 		Log:             LogLoginCheckConnect,
 		TS:              time.Now().Unix(),
 		Uin:             r.cred.Uin,
+	}
+}
+
+// LoginCheckEvent 构建 login_check 事件 (实名认证后)
+// 逆向自 pcapng: 实名认证完成后的二次检查 (apiid=110, ip=真实IP)
+func (r *Reporter) LoginCheckEvent(realIP string) Event {
+	return Event{
+		Age:            0,
+		APIID:          config.APIID,
+		Birthday:       "",
+		CountryAuthPI:  0,
+		DeviceID:       r.cred.DeviceID,
+		IP:             realIP,
+		IsRealnameConf: 1,
+		IsRealnamePass: 1,
+		Log:            LogLoginCheck,
+		TS:             time.Now().Unix(),
+		Uin:            r.cred.Uin,
 	}
 }

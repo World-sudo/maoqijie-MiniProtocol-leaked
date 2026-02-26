@@ -44,6 +44,9 @@ const (
 	// 运营配置
 	OperateCDNHost = "operate2cdn.mini1.cn"
 
+	// 账号服务器 (DNS缓存自libiworld.dll iworld.cfg)
+	AccountServer = "account.svr.mini1.cn"
+
 	// WebSocket子协议
 	GameSubProtocol = "default-protocol"
 
@@ -58,6 +61,10 @@ const (
 	HeaderToken   = "MN-TOKEN"
 	HeaderPayload = "MN-PAYLOAD"
 
+	// 签名类型
+	SignTypeMD5  = "md5"
+	SignTypeSHA1 = "sha1"
+
 	// Sentry DSN
 	SentryDSN = "https://98bca67bdc8939da32b4d77b923d40e4@miniwsentry.mini1.cn/2"
 
@@ -71,4 +78,7 @@ const (
 
 	// DomainLogin常量
 	DomainLoginHash = "f5711eb1640712de051e5aedc35329c3"
+
+	// 极验 GeeTest V4
+	GeeTestCaptchaURL = "gcaptcha4.geetest.com"
 )

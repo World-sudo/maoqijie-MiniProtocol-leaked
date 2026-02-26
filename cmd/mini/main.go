@@ -84,7 +84,7 @@ func main() {
 
 func runTelemetry(client *httpc.Client, cred *auth.Credential) {
 	reporter := telemetry.NewReporter(client, cred)
-	evt := reporter.LoginCheckEvent()
+	evt := reporter.LoginCheckConnectEvent()
 	if err := reporter.Report([]telemetry.Event{evt}); err != nil {
 		log.Printf("[telemetry] 上报失败: %v", err)
 	} else {

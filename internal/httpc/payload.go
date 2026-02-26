@@ -9,12 +9,16 @@ import (
 )
 
 // Payload MN-PAYLOAD 自定义头载荷
-// 逆向自 libiworld.dll: MN-AUTH MN-TOKEN MN-PAYLOAD
-// 字段: version device_plat device_id device_ts country_os
-//       nick uin_ts auth_mode session_id 等
+// 逆向自 libiworld.dll: MiniMutualParams (19个字段)
+// 字段列表: version device_plat device_apn device_id device_ts
+//
+//	country_os country_ip nick uin_ts utc_offset zone
+//	bind_mark client_type auth_ip auth_ts auth_mode
+//	device_ip session_id apply_id
 type Payload struct {
 	Version    string `json:"version"`
 	DevicePlat string `json:"device_plat"`
+	DeviceAPN  string `json:"device_apn,omitempty"`
 	DeviceID   string `json:"device_id"`
 	DeviceTS   string `json:"device_ts"`
 	CountryOS  string `json:"country_os"`
@@ -22,9 +26,25 @@ type Payload struct {
 	Nick       string `json:"nick,omitempty"`
 	UinTS      string `json:"uin_ts,omitempty"`
 	UTCOffset  string `json:"utc_offset"`
+	Zone       string `json:"zone,omitempty"`
+	BindMark   string `json:"bind_mark,omitempty"`
 	ClientType string `json:"client_type"`
+	AuthIP     string `json:"auth_ip,omitempty"`
+	AuthTS     string `json:"auth_ts,omitempty"`
 	AuthMode   string `json:"auth_mode,omitempty"`
+	DeviceIP   string `json:"device_ip,omitempty"`
 	SessionID  string `json:"session_id,omitempty"`
+	ApplyID    string `json:"apply_id,omitempty"`
+}
+
+// SignParams 签名参数 (附加到MN-PAYLOAD或URL中)
+// 逆向自 libiworld.dll: MiniMutualParams sign 区域
+type SignParams struct {
+	Sign      string `json:"sign"`
+	Timestamp string `json:"timestamp"`
+	RequestID string `json:"requestId"`
+	SignType  string `json:"sign_type"`
+	SignVer   string `json:"sign_ver,omitempty"`
 }
 
 // DefaultPayload 构造默认的MN-PAYLOAD

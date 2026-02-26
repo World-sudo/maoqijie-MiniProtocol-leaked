@@ -1,17 +1,20 @@
 // Package register 注册/登录接口
 // 逆向发现:
-//   - 注册路径: mnweb.mini1.cn/register/ (HTTPS, 需GeeTest V4验证码)
+//   - 注册路径: h5.mini1.cn/register/ (HTTPS, H5 WebView, GeeTest V4验证码)
 //   - 登录路径: mnweb.mini1.cn/account/TextPwdLogin (HTTPS)
-//   - 域名登录: <server>/miniw/ldap/auth?time=%d&auth=%s (POST)
+//   - 域名登录: <server>/miniw/ldap/auth?time=%d&auth=%s (POST, 内部LDAP)
+//   - 回调: SDKLoginCallBack(%d, [[%s]], [[%s]], %d)  (status, uid, token, type)
+//   - 回调: NativeCalledLoginManager([[DomainLoginResult]],[[...]])
 //   - 自定义头: MN-AUTH, MN-TOKEN, MN-PAYLOAD
-//   - Payload字段: version, device_plat, device_id, device_ts,
-//     country_os, country_ip, nick, uin_ts, auth_mode, session_id 等
-//   - 登录回调: NativeCalledLoginManager([[DomainLoginResult]])
+//   - JWT载荷: Uin, env, auth, ts, apiid, cltversion, src, deviceid, its, iat
+//   - 认证前缀: switchAccountByAuthInfo_reg###<JWT>
 //   - 签名密钥: #_php_miniw_2016_# (md5(uin+time+secret))
 package register
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"miniprotocol/internal/auth"
 	"miniprotocol/internal/config"
 	"miniprotocol/internal/httpc"
@@ -32,9 +35,20 @@ func NewClient(c *httpc.Client) *Client {
 	return &Client{httpClient: c}
 }
 
+// LoginResult 登录响应
+// 从 pcapng 抓包还原: 服务端返回 JSON 含 JWT 令牌
+type LoginResult struct {
+	Code    int    `json:"code"`
+	Message string `json:"msg"`
+	Token   string `json:"token"`
+	Uin     int64  `json:"uin"`
+	ErrType string `json:"err_type,omitempty"`
+}
+
 // DomainLogin 域名登录 (POST /miniw/ldap/auth)
+// 逆向自 libiworld.dll: domainLogin: url=%s, postData=%s
 // 参数: server - 服务器地址, uin - 用户ID, postData - 登录数据
-// 返回: 响应体, 错误
+// 回调: NativeCalledLoginManager([[DomainLoginResult]],[[httpcode,httpmsg]])
 func (c *Client) DomainLogin(server string, uin int64, postData string) (int, string, error) {
 	ts := time.Now().Unix()
 	authSig := auth.Sign(uin, ts)
@@ -60,7 +74,8 @@ func (c *Client) DomainLogin(server string, uin int64, postData string) (int, st
 
 // TextPwdLogin 用户名密码登录 (POST /account/TextPwdLogin)
 // 逆向自 LJ#261: uin + pwd 字段, 密码MD5后传输
-func (c *Client) TextPwdLogin(account, password, deviceID string) (int, string, error) {
+// 回调: SDKLoginCallBack(%d, [[uid]], [[token]], %d)
+func (c *Client) TextPwdLogin(account, password, deviceID string) (*LoginResult, error) {
 	pwdMD5 := auth.MD5Password(password)
 
 	params := url.Values{}
@@ -74,7 +89,7 @@ func (c *Client) TextPwdLogin(account, password, deviceID string) (int, string, 
 	req, err := http.NewRequest("POST", u,
 		strings.NewReader(params.Encode()))
 	if err != nil {
-		return 0, "", fmt.Errorf("构造登录请求失败: %w", err)
+		return nil, fmt.Errorf("构造登录请求失败: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
@@ -83,11 +98,20 @@ func (c *Client) TextPwdLogin(account, password, deviceID string) (int, string, 
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return 0, "", fmt.Errorf("登录请求失败: %w", err)
+		return nil, fmt.Errorf("登录请求失败: %w", err)
 	}
 	defer resp.Body.Close()
 
-	return resp.StatusCode, resp.Status, nil
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应失败: %w", err)
+	}
+
+	var result LoginResult
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("解析响应失败: %w (body=%s)", err, string(body))
+	}
+	return &result, nil
 }
 
 // TextPwdLoginURL 构造用户名密码登录URL
@@ -100,6 +124,24 @@ func TextPwdLoginURL() string {
 func RegisterURL() string {
 	return fmt.Sprintf("https://%s%s",
 		config.RegisterH5Host, config.RegisterPath)
+}
+
+// AuthAPIURL 构造通用认证API URL
+// 逆向自 libiworld.dll: ?act=<op>&auth=%s&time=%u&uin=%u&s2t=%s&country=%s&lang=1
+func AuthAPIURL(host, act string, uin int64, s2t string) string {
+	ts := time.Now().Unix()
+	authSig := auth.Sign(uin, ts)
+	params := url.Values{}
+	params.Set("act", act)
+	params.Set("auth", authSig)
+	params.Set("time", strconv.FormatInt(ts, 10))
+	params.Set("uin", strconv.FormatInt(uin, 10))
+	if s2t != "" {
+		params.Set("s2t", s2t)
+	}
+	params.Set("country", "CN")
+	params.Set("lang", "1")
+	return fmt.Sprintf("https://%s?%s", host, params.Encode())
 }
 
 // BuildUpdateToken 构造更新检查token (md5签名)
