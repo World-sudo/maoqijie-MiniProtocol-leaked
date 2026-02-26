@@ -25,11 +25,33 @@ func EncryptBDInfo(plaintext string) (string, error) {
 	return base64.StdEncoding.EncodeToString(ct), nil
 }
 
-// MD5Password 密码MD5哈希
+// MD5Password 密码MD5哈希 (旧版TextPwdLogin用)
 // 逆向自 LJ#148: enryptPw / shouldNotMd5
 func MD5Password(pwd string) string {
 	hash := md5.Sum([]byte(pwd))
 	return fmt.Sprintf("%x", hash)
+}
+
+// Base64Password 密码Base64编码 (新版SSO登录用)
+// 逆向自 sso.mini1.cn JS: h.encode() = 标准Base64
+func Base64Password(pwd string) string {
+	return base64.StdEncoding.EncodeToString([]byte(pwd))
+}
+
+// NativeBase64Alphabet MicroMiniNew.exe自定义Base64字母表
+// 逆向自 MicroMiniNew.exe 二进制字符串
+const NativeBase64Alphabet = "Vg21WQ5KdRt0yNpcr9m4O3PoHaZvsLeCY8FjSwiTkUbuEBIJlAG7fqXM6xDnzh-;"
+
+// NativeBase64Encode 使用自定义字母表的Base64编码
+func NativeBase64Encode(data []byte) string {
+	enc := base64.NewEncoding(NativeBase64Alphabet)
+	return enc.EncodeToString(data)
+}
+
+// NativeBase64Decode 使用自定义字母表的Base64解码
+func NativeBase64Decode(s string) ([]byte, error) {
+	enc := base64.NewEncoding(NativeBase64Alphabet)
+	return enc.DecodeString(s)
 }
 
 // URLSign 生成URL签名: md5(uin+secret+ts)

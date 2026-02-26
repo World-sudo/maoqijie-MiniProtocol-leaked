@@ -144,6 +144,26 @@ func AuthAPIURL(host, act string, uin int64, s2t string) string {
 	return fmt.Sprintf("https://%s?%s", host, params.Encode())
 }
 
+// BuildSignedURL 构造带签名的通用API URL (LJ#096 GetReqUrl)
+// 参数: appid, channel, language, s2t, ts, uin, env, cnty, sign
+func BuildSignedURL(baseURL string, uin int64) string {
+	uinStr := strconv.FormatInt(uin, 10)
+	ts := time.Now().Unix()
+	authSig := auth.Sign(uin, ts)
+	sign := auth.URLSignMD5(uinStr)
+
+	params := url.Values{}
+	params.Set("appid", strconv.Itoa(config.APIID))
+	params.Set("auth", authSig)
+	params.Set("time", strconv.FormatInt(ts, 10))
+	params.Set("uin", uinStr)
+	params.Set("country", "CN")
+	params.Set("lang", "1")
+	params.Set("env", "0")
+	params.Set("sign", sign)
+	return baseURL + "?" + params.Encode()
+}
+
 // BuildUpdateToken 构造更新检查token (md5签名)
 func BuildUpdateToken(uin int64) string {
 	ts := time.Now().Unix()
