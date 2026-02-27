@@ -1,8 +1,10 @@
 package game
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"miniprotocol/internal/auth"
 	"miniprotocol/internal/config"
 	"net/http"
 	"time"
@@ -52,6 +54,27 @@ func (c *Conn) ReadLoop(handler func(msgType int, data []byte)) {
 // Send 发送消息
 func (c *Conn) Send(data []byte) error {
 	return c.conn.WriteMessage(websocket.BinaryMessage, data)
+}
+
+// ConnectWithAuth 连接游戏服务器并发送登录认证包
+func ConnectWithAuth(cred *auth.Credential) (*Conn, error) {
+	c, err := Connect()
+	if err != nil {
+		return nil, err
+	}
+
+	// 构造登录请求包 (body = JWT 认证信息)
+	loginBody, _ := json.Marshal(map[string]any{
+		"auth": cred.AuthString(),
+		"uin":  cred.Uin,
+	})
+	loginPkt := &Packet{ID: PktLoginReq, Body: loginBody}
+	if err := c.SendPacket(loginPkt); err != nil {
+		c.Close()
+		return nil, fmt.Errorf("发送登录包失败: %w", err)
+	}
+	log.Printf("[game] 已发送登录认证包")
+	return c, nil
 }
 
 // Close 关闭连接

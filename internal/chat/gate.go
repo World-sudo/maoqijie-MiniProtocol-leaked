@@ -14,14 +14,15 @@ import (
 
 // Gate 聊天WebSocket长连接
 type Gate struct {
-	cred *auth.Credential
-	conn *websocket.Conn
-	host string
+	cred   *auth.Credential
+	conn   *websocket.Conn
+	host   string
+	stopCh chan struct{}
 }
 
 // NewGate 创建聊天网关
 func NewGate(cred *auth.Credential, host string) *Gate {
-	return &Gate{cred: cred, host: host}
+	return &Gate{cred: cred, host: host, stopCh: make(chan struct{})}
 }
 
 // Connect 建立WebSocket长连接
@@ -50,6 +51,7 @@ func (g *Gate) Connect() error {
 	}
 	g.conn = conn
 	log.Printf("[chat] 已连接聊天网关: %s", g.host)
+	go g.heartbeatLoop()
 	return nil
 }
 
@@ -78,8 +80,32 @@ func (g *Gate) Send(data []byte) error {
 
 // Close 关闭连接
 func (g *Gate) Close() error {
+	select {
+	case <-g.stopCh:
+	default:
+		close(g.stopCh)
+	}
 	if g.conn == nil {
 		return nil
 	}
 	return g.conn.Close()
+}
+
+// heartbeatLoop 定期发送心跳帧保持连接
+func (g *Gate) heartbeatLoop() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-g.stopCh:
+			return
+		case <-ticker.C:
+			frame := NewHeartbeatFrame()
+			if err := g.Send(frame.Encode()); err != nil {
+				log.Printf("[chat] 心跳发送失败: %v", err)
+				return
+			}
+			log.Println("[chat] 心跳已发送")
+		}
+	}
 }

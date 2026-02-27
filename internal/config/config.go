@@ -133,6 +133,12 @@ const (
 	CreditAPI   = "credit-api.mini1.cn"
 	MiniPalHost = "minipal.mini1.cn"
 
+	// 好友服务 (逆向自 iworld.cfg DnsCache)
+	FriendHost = "friend.mini1.cn"
+
+	// 邮件服务
+	MailHost = "mail.mini1.cn"
+
 	// GeeTest V4 (逆向自 sso.mini1.cn JS)
 	GeeTestCaptchaURL = "gcaptcha4.geetest.com"
 	GeeTestCaptchaID  = "57157b87c9788ae72be45a2c79c6dd1c"
