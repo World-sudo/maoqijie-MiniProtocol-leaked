@@ -16,9 +16,10 @@ import (
 )
 
 func main() {
-	uin := flag.Int64("uin", 0, "用户uin")
-	password := flag.String("pwd", "", "登录密码 (触发SSO登录)")
-	nativeLogin := flag.Bool("native", false, "使用原生登录 (wskacchm) 代替SSO")
+	uin := flag.Int64("uin", 0, "用户uin (迷你号)")
+	password := flag.String("pwd", "", "登录密码")
+	nativeLogin := flag.Bool("native", false, "使用原生登录 (wskacchm)")
+	doRegister := flag.Bool("register", false, "注册新账号")
 	deviceID := flag.String("device", "", "设备指纹 (WINxxxx)")
 	jwt := flag.String("jwt", "", "登录JWT令牌")
 	skipTelemetry := flag.Bool("skip-telemetry", false, "跳过遥测上报")
@@ -26,14 +27,6 @@ func main() {
 	skipGame := flag.Bool("skip-game", false, "跳过游戏连接")
 	loginOnly := flag.Bool("login-only", false, "仅登录，不连接游戏服务")
 	flag.Parse()
-
-	if *uin == 0 {
-		fmt.Fprintln(os.Stderr, "用法:")
-		fmt.Fprintln(os.Stderr, "  登录: mini -uin <uin> -pwd <密码>")
-		fmt.Fprintln(os.Stderr, "  连接: mini -uin <uin> -jwt <token>")
-		flag.PrintDefaults()
-		os.Exit(1)
-	}
 
 	// 设备指纹
 	if *deviceID == "" {
@@ -45,10 +38,35 @@ func main() {
 
 	client := httpc.New()
 
+	// 注册模式
+	if *doRegister {
+		if *password == "" {
+			fmt.Fprintln(os.Stderr, "注册需要密码: mini -register -pwd <密码>")
+			os.Exit(1)
+		}
+		runRegister(client, *password, *deviceID)
+		return
+	}
+
+	// 登录模式需要 uin
+	if *uin == 0 && *password != "" && !*nativeLogin {
+		fmt.Fprintln(os.Stderr, "SSO登录需要uin: mini -uin <迷你号> -pwd <密码>")
+		os.Exit(1)
+	}
+
+	if *uin == 0 && *jwt == "" && *password == "" {
+		fmt.Fprintln(os.Stderr, "用法:")
+		fmt.Fprintln(os.Stderr, "  注册: mini -register -pwd <密码>")
+		fmt.Fprintln(os.Stderr, "  登录: mini -uin <迷你号> -pwd <密码> -native")
+		fmt.Fprintln(os.Stderr, "  SSO:  mini -uin <迷你号> -pwd <密码>")
+		fmt.Fprintln(os.Stderr, "  连接: mini -uin <迷你号> -jwt <token>")
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
 	// 登录模式
 	if *password != "" {
 		if *nativeLogin {
-			// 原生登录 (MicroMiniNew.exe 协议)
 			token, err := runNativeLogin(client, *uin, *password, *deviceID)
 			if err != nil {
 				log.Fatalf("[login] 原生登录失败: %v", err)
@@ -56,7 +74,6 @@ func main() {
 			log.Printf("[login] 原生登录成功! token: %s", token)
 			*jwt = token
 		} else {
-			// SSO登录 (wapi.mini1.cn)
 			token, err := runSSOLogin(client, *uin, *password)
 			if err != nil {
 				log.Fatalf("[login] SSO登录失败: %v", err)
@@ -67,6 +84,11 @@ func main() {
 		if *loginOnly {
 			return
 		}
+	}
+
+	if *uin == 0 {
+		fmt.Fprintln(os.Stderr, "需要uin才能连接游戏服务")
+		os.Exit(1)
 	}
 
 	// 凭证

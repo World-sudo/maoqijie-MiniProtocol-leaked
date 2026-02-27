@@ -100,6 +100,16 @@ const (
 	// AES-256 auth_test 密钥 (逆向自 LJ#222)
 	AuthTestKey = "6tZwR6zAcAkcj2NxMYOBuU1sCl8bphyH"
 
+	// 原生登录响应解密 AES-256-CBC 密钥 (逆向自 MicroMiniNew.exe)
+	// 初始化代码: 0x0064C440 -> push 0x65E104 -> "fcafc12e17b93a30a8998fcbc7d5c786"
+	// 存储位置: g_aesKey 全局变量 0x6EB9DC
+	NativeRespAESKey = "fcafc12e17b93a30a8998fcbc7d5c786"
+
+	// 原生登录响应解密 AES-256-CBC IV (逆向自 MicroMiniNew.exe)
+	// 初始化代码: 0x0064C460 -> push 0x65E128 -> "624df8d86de5dc35"
+	// 存储位置: g_aesIV 全局变量 0x6EB9F8
+	NativeRespAESIV = "624df8d86de5dc35"
+
 	// 第三方OAuth
 	WeChatAppID = "wx0344e7ba7bfcacaf"
 	QQAppID     = "101901986"

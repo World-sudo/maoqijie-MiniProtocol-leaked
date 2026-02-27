@@ -70,6 +70,70 @@ func DecryptBDInfo(cipherB64 string) (string, error) {
 	return string(pkcs7Unpad(ct)), nil
 }
 
+// DecryptNativeResponse 解密原生登录响应的 authinfo/baseinfo 字段
+// 逆向自 MicroMiniNew.exe 0x0045A180 解密函数
+//
+// 完整流程 (从 0x0045D450 响应解析函数):
+//  1. 从响应 JSON 中取出 authinfo/baseinfo (加密字符串) 和 iv (数字字符串)
+//  2. 从 iv 字段解析数字 N (0x0045A1DE: 从末尾反向解析十进制数)
+//  3. 字符重排: rotated = encrypted[len-N:] + encrypted[:len-N] (循环右移N位)
+//  4. 标准 Base64 解码 (字母表: A-Za-z0-9+/, 初始化于 0x0064C420)
+//  5. AES-256-CBC 解密 (0x0044C2B0 -> 0x0044B7D0 密钥设置 + 0x0044BBF0 解密)
+//  6. PKCS7 去除填充
+//
+// authinfo 解密后包含: {"Uin": <int>, "token": "<string>", "sign": "<string>"}
+// baseinfo 解密后包含: {"LastLoginTime": <int>, "isloginsafeverify": <bool>}
+func DecryptNativeResponse(encrypted, iv string) (string, error) {
+	// 步骤1: 从 iv 字段解析数字 N
+	n := parseIVNumber(iv)
+	if n <= 0 || n > len(encrypted) {
+		return "", fmt.Errorf("invalid iv number: %d (encrypted len=%d)", n, len(encrypted))
+	}
+
+	// 步骤2: 字符重排 (循环右移N位)
+	// 逆向自 0x0045A246/0x0045A25D: substr(0,len-N) + substr(len-N,N) -> concat(后半,前半)
+	splitPos := len(encrypted) - n
+	rotated := encrypted[splitPos:] + encrypted[:splitPos]
+
+	// 步骤3: 标准 Base64 解码
+	cipherBytes, err := base64.StdEncoding.DecodeString(rotated)
+	if err != nil {
+		return "", fmt.Errorf("base64 decode: %w", err)
+	}
+
+	// 步骤4: AES-256-CBC 解密
+	block, err := aes.NewCipher([]byte(config.NativeRespAESKey))
+	if err != nil {
+		return "", fmt.Errorf("aes cipher: %w", err)
+	}
+	if len(cipherBytes)%aes.BlockSize != 0 {
+		return "", fmt.Errorf("ciphertext not aligned: %d bytes", len(cipherBytes))
+	}
+	mode := cipher.NewCBCDecrypter(block, []byte(config.NativeRespAESIV))
+	mode.CryptBlocks(cipherBytes, cipherBytes)
+
+	// 步骤5: PKCS7 去除填充
+	plaintext := pkcs7Unpad(cipherBytes)
+	return string(plaintext), nil
+}
+
+// parseIVNumber 从 iv 字符串解析数字 N
+// 逆向自 0x0045A1DE-0x0045A228:
+// 从字符串末尾(右端)向前遍历,遇到数字则累加: N += (char-'0') * placeValue; placeValue *= 10
+// 遇到非数字时跳过但 placeValue 不重置
+func parseIVNumber(iv string) int {
+	n := 0
+	placeValue := 1
+	for i := len(iv) - 1; i >= 0; i-- {
+		c := iv[i]
+		if c >= '0' && c <= '9' {
+			n += int(c-'0') * placeValue
+			placeValue *= 10
+		}
+	}
+	return n
+}
+
 // URLSign 生成URL签名: md5(uin+secret+ts)
 // 逆向自 LJ#96: GetReqUrl / p_getmd5
 func URLSign(uin int64, ts int64) string {
