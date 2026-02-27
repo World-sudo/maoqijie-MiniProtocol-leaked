@@ -14,7 +14,9 @@ package rpc
 import (
 	"crypto/md5"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
 	"miniprotocol/internal/httpc"
 	"net/url"
@@ -28,24 +30,11 @@ type DHParams struct {
 }
 
 // DefaultDHParams 默认DH参数
-// 这些参数在运行时由DHKey对象初始化
-// 目前使用标准的2048-bit MODP Group (RFC 3526 Group 14) 作为占位
-// 实际参数需要从运行时内存dump提取
+// 逆向提取的实际hex_num值 (非标准RFC参数)
 func DefaultDHParams() *DHParams {
 	g := big.NewInt(2)
-	// RFC 3526 Group 14 (2048-bit)
 	p, _ := new(big.Int).SetString(
-		"FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"+
-			"29024E088A67CC74020BBEA63B139B22514A08798E3404DD"+
-			"EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245"+
-			"E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED"+
-			"EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D"+
-			"C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F"+
-			"83655D23DCA3AD961C62F356208552BB9ED529077096966D"+
-			"670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B"+
-			"E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9"+
-			"DE2BCBF6955817183995497CEA956AE515D2261898FA0510"+
-			"15728E5A8AACAA68FFFFFFFFFFFFFFFF", 16)
+		"19948998fdd5c7b3ade8e87b4a12e292b0b881a4e1ae97", 16)
 	return &DHParams{G: g, P: p}
 }
 
@@ -102,6 +91,12 @@ func (d *DHExchange) DeriveKey(remotePublicHex string) (key, iv []byte, err erro
 	return fullKey, iv, nil
 }
 
+// dhExchangeResponse 服务端DH交换响应
+type dhExchangeResponse struct {
+	Code int    `json:"code"`
+	RB   string `json:"r_b"` // 服务端公钥B (hex)
+}
+
 // RequestDHExchange 通过 _proxy?act=L 发起DH密钥交换
 // 逆向自 patch_game_script.pkg @6846035: _proxy?act=L&r_a=%s
 func RequestDHExchange(client *httpc.Client, baseURL string, uin int64, publicKeyHex string) (string, error) {
@@ -118,7 +113,23 @@ func RequestDHExchange(client *httpc.Client, baseURL string, uin int64, publicKe
 	}
 	defer resp.Body.Close()
 
-	// TODO: 解析服务端返回的公钥B
-	// 响应格式待进一步逆向确认
-	return "", fmt.Errorf("DH交换响应解析待实现 (status=%d)", resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("读取DH响应失败: %w", err)
+	}
+
+	var result dhExchangeResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", fmt.Errorf("解析DH响应失败: %w (body=%s)", err, string(body))
+	}
+
+	if result.Code != 0 {
+		return "", fmt.Errorf("DH交换失败: code=%d", result.Code)
+	}
+
+	if result.RB == "" {
+		return "", fmt.Errorf("DH响应缺少r_b字段 (body=%s)", string(body))
+	}
+
+	return result.RB, nil
 }

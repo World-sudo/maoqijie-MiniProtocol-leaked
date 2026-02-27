@@ -163,4 +163,17 @@ const (
 	// CrashSight 崩溃上报
 	CrashSightAppID = "0c2abe1373"
 	CrashSightURL   = "pc.crashsight.qq.com"
+
+	// 支付签名密钥 (逆向自 libiworld.dll, 仅记录协议常量)
+	PaySignKey = "anxxrfrqwfeswqwdfaad13bsddca"
+
+	// 支付域名 (逆向自 libiworld.dll, 仅记录不实现支付逻辑)
+	PayAlipayHost  = "pay.mini1.cn"
+	PayWechatHost  = "pay.mini1.cn"
+	PayQQCloudHost = "qqcloudpay.mini1.cn"
+	PayWeGameHost  = "wegame-pay.mini1.cn"
+	PayAlipayPath  = "/miniw/alipay/"
+	PayWechatPath  = "/miniw/wxpay/"
+	PayQQCloudPath = "/miniw/qqcloudpay/"
+	PayWeGamePath  = "/miniw/wegamepay/"
 )

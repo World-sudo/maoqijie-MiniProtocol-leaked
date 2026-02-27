@@ -7,6 +7,8 @@ import (
 	"miniprotocol/internal/auth"
 	"miniprotocol/internal/config"
 	"miniprotocol/internal/httpc"
+	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -25,10 +27,23 @@ func NewService(client *httpc.Client, cred *auth.Credential) *Service {
 func (s *Service) GetConfig() (*Response, error) {
 	ts := time.Now().Unix()
 	authSig := s.cred.ChatAuthAt(ts)
+	uinStr := strconv.FormatInt(s.cred.Uin, 10)
+	sign := auth.URLSignMD5(uinStr)
 
-	u := fmt.Sprintf("http://%s:%d%s?cmd=server_config&uin=%d&auth=%s",
+	params := url.Values{}
+	params.Set("cmd", "server_config")
+	params.Set("uin", uinStr)
+	params.Set("auth", authSig)
+	params.Set("time", strconv.FormatInt(ts, 10))
+	params.Set("env", "0")
+	params.Set("s2t", "0")
+	params.Set("country", "CN")
+	params.Set("lang", "1")
+	params.Set("sign", sign)
+
+	u := fmt.Sprintf("http://%s:%d%s?%s",
 		config.RoomHost, config.RoomPort, config.RoomPath,
-		s.cred.Uin, authSig)
+		params.Encode())
 
 	resp, err := s.client.Get(u)
 	if err != nil {

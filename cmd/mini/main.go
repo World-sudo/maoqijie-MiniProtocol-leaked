@@ -6,11 +6,14 @@ import (
 	"log"
 	"miniprotocol/internal/auth"
 	"miniprotocol/internal/chat"
+	"miniprotocol/internal/credit"
 	"miniprotocol/internal/device"
 	"miniprotocol/internal/game"
 	"miniprotocol/internal/httpc"
+	"miniprotocol/internal/moderation"
 	"miniprotocol/internal/room"
 	"miniprotocol/internal/telemetry"
+	"miniprotocol/internal/version"
 	"os"
 	"os/signal"
 )
@@ -26,6 +29,9 @@ func main() {
 	skipChat := flag.Bool("skip-chat", false, "跳过聊天服务")
 	skipGame := flag.Bool("skip-game", false, "跳过游戏连接")
 	loginOnly := flag.Bool("login-only", false, "仅登录，不连接游戏服务")
+	checkVersion := flag.Bool("version", false, "查询版本信息")
+	checkText := flag.String("check-text", "", "内容审核文本")
+	queryCredit := flag.Bool("credit", false, "查询信用分")
 	flag.Parse()
 
 	// 设备指纹
@@ -38,6 +44,12 @@ func main() {
 
 	client := httpc.New()
 
+	// 版本查询模式
+	if *checkVersion {
+		runVersionCheck(client)
+		return
+	}
+
 	// 注册模式
 	if *doRegister {
 		if *password == "" {
@@ -45,6 +57,16 @@ func main() {
 			os.Exit(1)
 		}
 		runRegister(client, *password, *deviceID)
+		return
+	}
+
+	// 信用分查询 (需要uin)
+	if *queryCredit {
+		if *uin == 0 {
+			fmt.Fprintln(os.Stderr, "查询信用分需要uin: mini -credit -uin <迷你号>")
+			os.Exit(1)
+		}
+		runCreditQuery(client, *uin)
 		return
 	}
 
@@ -56,10 +78,13 @@ func main() {
 
 	if *uin == 0 && *jwt == "" && *password == "" {
 		fmt.Fprintln(os.Stderr, "用法:")
-		fmt.Fprintln(os.Stderr, "  注册: mini -register -pwd <密码>")
-		fmt.Fprintln(os.Stderr, "  登录: mini -uin <迷你号> -pwd <密码> -native")
-		fmt.Fprintln(os.Stderr, "  SSO:  mini -uin <迷你号> -pwd <密码>")
-		fmt.Fprintln(os.Stderr, "  连接: mini -uin <迷你号> -jwt <token>")
+		fmt.Fprintln(os.Stderr, "  注册:   mini -register -pwd <密码>")
+		fmt.Fprintln(os.Stderr, "  登录:   mini -uin <迷你号> -pwd <密码> -native")
+		fmt.Fprintln(os.Stderr, "  SSO:    mini -uin <迷你号> -pwd <密码>")
+		fmt.Fprintln(os.Stderr, "  连接:   mini -uin <迷你号> -jwt <token>")
+		fmt.Fprintln(os.Stderr, "  版本:   mini -version")
+		fmt.Fprintln(os.Stderr, "  审核:   mini -uin <迷你号> -jwt <token> -check-text <文本>")
+		fmt.Fprintln(os.Stderr, "  信用分: mini -credit -uin <迷你号>")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -97,6 +122,12 @@ func main() {
 		cred.SetLoginJWT(*jwt)
 	}
 	log.Printf("[main] 凭证: %s", cred)
+
+	// 内容审核 (需要登录后)
+	if *checkText != "" {
+		runTextCheck(client, cred, *checkText)
+		return
+	}
 
 	// 遥测上报
 	if !*skipTelemetry {
@@ -190,4 +221,40 @@ func runGame() *game.Conn {
 	})
 
 	return conn
+}
+
+func runVersionCheck(client *httpc.Client) {
+	checker := version.NewChecker(client)
+	info, err := checker.GetVersionJSON()
+	if err != nil {
+		log.Printf("[version] 获取版本失败: %v", err)
+		return
+	}
+	log.Printf("[version] 版本: %s (cltversion=%d)", info.Version, info.CltVersion)
+	log.Printf("[version] 下载: %s", info.URL)
+	if info.ForceUp != 0 {
+		log.Printf("[version] 强制更新: %s", info.Desc)
+	}
+}
+
+func runTextCheck(client *httpc.Client, cred *auth.Credential, text string) {
+	checker := moderation.NewChecker(client, cred)
+	result, err := checker.CheckText(text, "chat")
+	if err != nil {
+		log.Printf("[moderation] 审核失败: %v", err)
+		return
+	}
+	log.Printf("[moderation] code=%d pass=%v reason=%s",
+		result.Code, result.Data.Pass, result.Data.Reason)
+}
+
+func runCreditQuery(client *httpc.Client, uin int64) {
+	c := credit.NewClient(client)
+	result, err := c.QueryScore(uin)
+	if err != nil {
+		log.Printf("[credit] 查询失败: %v", err)
+		return
+	}
+	log.Printf("[credit] code=%d score=%d limited=%v",
+		result.Code, result.Data.Score, result.Data.Limited)
 }
